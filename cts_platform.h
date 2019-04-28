@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
-#include <linux/bitops.h>
+//#include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/unaligned/access_ok.h>
 #include <linux/kernel.h>
@@ -28,8 +28,22 @@
 #include <linux/hrtimer.h>
 #include <linux/string.h>
 #include <linux/suspend.h>
-#include <linux/wakelock.h>
+//#include <linux/wakelock.h>
 #include <linux/firmware.h>
+#include <linux/ioport.h> 
+
+#include <linux/idr.h>
+#include <linux/mutex.h>
+#include <linux/device.h>
+#include <linux/sysfs.h>
+//#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
+//#include <linux/interrupt.h>
+#include <linux/kdev_t.h>
+//#include <linux/slab.h>
+
+//#include "gpiolib.h"
 
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -47,11 +61,11 @@
 #include "mtk_boot_common.h"
 #endif /* CONFIG_MTK_BOOT */
 
-#include "tpd.h"
-#include "tpd_debug.h"
-#include "upmu_common.h"
+//#include "tpd.h"
+//#include "tpd_debug.h"
+//#include "upmu_common.h"
 
-extern bool cts_show_debug_log;
+//extern bool cts_show_debug_log;
 extern struct chipone_ts_data *chipone_ts_data;
 
 #ifndef LOG_TAG
@@ -66,7 +80,6 @@ extern struct chipone_ts_data *chipone_ts_data;
     printk("<I>CTS-" LOG_TAG " " fmt"\n", ##__VA_ARGS__)
 #define cts_dbg(fmt, ...)   \
     do {                                                    \
-        if (cts_show_debug_log)                                     \
             printk("<D>CTS-" LOG_TAG " "fmt"\n", ##__VA_ARGS__);   \
     } while(0)
 
@@ -110,6 +123,8 @@ struct cts_platform_data {
 
     bool dma_available;
 
+    struct gpio_desc *desc;
+	
 };
 
 extern size_t cts_plat_get_max_i2c_xfer_size(struct cts_platform_data *pdata);
@@ -128,7 +143,8 @@ extern int cts_deinit_platform_data(struct cts_platform_data *pdata);
 extern int cts_plat_request_resource(struct cts_platform_data *pdata);
 extern void cts_plat_free_resource(struct cts_platform_data *pdata);
 
-extern int cts_plat_request_irq(struct cts_platform_data *pdata);
+//extern int cts_plat_request_irq(struct cts_platform_data *pdata);
+extern int cts_plat_request_irq(struct chipone_ts_data *pdata);
 extern void cts_plat_free_irq(struct cts_platform_data *pdata);
 extern int cts_plat_enable_irq(struct cts_platform_data *pdata);
 extern int cts_plat_disable_irq(struct cts_platform_data *pdata);
@@ -169,6 +185,10 @@ extern int cts_plat_process_gesture_info(struct cts_platform_data *pdata,
 static inline int cts_plat_init_gesture(struct cts_platform_data *pdata) {return 0;}
 static inline void cts_plat_deinit_gesture(struct cts_platform_data *pdata)  {}
 #endif /* CONFIG_CTS_GESTURE */
+
+#ifdef IRQ_LED
+extern int bcm2835_gpio_set_clr(bool mode,uint8_t pin);
+#endif
 
 #endif /* CTS_PLATFORM_H */
 

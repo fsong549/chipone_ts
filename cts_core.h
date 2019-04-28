@@ -154,7 +154,7 @@ struct cts_device_gesture_info {
 
 
 struct cts_device;
-
+#if 1
 enum cts_crc_type {
     CTS_CRC16 = 1,
     CTS_CRC32 = 2,
@@ -253,7 +253,7 @@ struct chipone_ts_data {
 #endif /* CONFIG_CTS_LEGACY_TOOL */
 
 };
-
+#endif
 static inline u32 get_unaligned_le24(const void *p)
 {
     const u8 *puc = (const u8 *)p;

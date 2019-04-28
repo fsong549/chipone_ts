@@ -6,7 +6,7 @@
 //#include "cts_sfctrl.h"
 //#include "cts_spi_flash.h"
 #include "cts_firmware.h"
-#include "icn8xxx_flash.h"
+#include "icnt8xxx_flash.h"
 
 extern struct cts_firmware cts_driver_builtin_firmwares[];
 
@@ -22,13 +22,13 @@ static struct cts_device_hwdata cts_device_hwdatas[] = {
         .ver_offset = 0x114,
     },
     {
-        .name = "ICNT86xx",
-        .hwid = CTS_HWID_ICNT86XX,
-        .fwid = CTS_FWID_ICNT86XX,
-        .num_row = 42,
-        .num_col = 30,
+        .name = "ICNT88xx",
+        .hwid = CTS_HWID_ICNT88XX,
+        .fwid = CTS_FWID_ICNT88XX,
+        .num_row = 26,
+        .num_col = 14,
         .sram_size = 45 * 1024,
-        .program_addr_width = 3,
+        .program_addr_width = 2,
         .ver_offset = 0x100,
     },
     {
@@ -39,6 +39,16 @@ static struct cts_device_hwdata cts_device_hwdatas[] = {
         .num_col = 12,
         .sram_size = 32 * 1024,
         .program_addr_width = 2,
+        .ver_offset = 0x100,
+    },
+    {
+        .name = "ICNT86xx",
+        .hwid = CTS_HWID_ICNT86XX,
+        .fwid = CTS_FWID_ICNT86XX,
+        .num_row = 42,
+        .num_col = 30,
+        .sram_size = 45 * 1024,
+        .program_addr_width = 3,
         .ver_offset = 0x100,
     },
     {
@@ -1073,8 +1083,8 @@ int cts_irq_handler(struct cts_device *cts_dev)
 {
     int ret;
 
-    cts_dbg("Enter IRQ handler");
-
+    //cts_dbg("Enter IRQ handler");
+#if 0
     if (cts_dev->rtdata.program_mode) {
         cts_err("IRQ triggered in program mode");
         return -EINVAL;
@@ -1133,6 +1143,26 @@ int cts_irq_handler(struct cts_device *cts_dev)
         }
 #endif /* CONFIG_CTS_VIRTUALKEY */
     }
+#endif
+
+	struct cts_device_touch_info touch_info;
+
+	cts_dbg("Enter IRQ handler");
+	
+	ret = cts_get_touchinfo(cts_dev, &touch_info);
+	if (ret) {
+		cts_err("Get touch info failed %d", ret);
+		return ret;
+	}
+	cts_dbg("Touch info: vkey_state %x, num_msg %u",
+		touch_info.vkey_state, touch_info.num_msg);
+
+	ret = cts_plat_process_touch_msg(cts_dev->pdata,
+		touch_info.msgs, touch_info.num_msg);
+	if (ret) {
+		cts_err("Process touch msg failed %d", ret);
+		return ret;
+	}
 
     return 0;
 }
@@ -1290,12 +1320,23 @@ static inline void cts_init_rtdata_with_normal_mode(struct cts_device *cts_dev)
 u8 cts_get_program_i2c_addr(struct cts_device *cts_dev)
 {
     u8 prog_i2c_addr;
+    cts_info("==============I2C TEST START==============");
+    cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR);
+    cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR);
+    cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR_2);
+    cts_plat_is_i2c_online(cts_dev->pdata, 0x78);
+    cts_info("==============I2C TEST END==============");
+	
     if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR_2)){
         prog_i2c_addr =  CTS_PROGRAM_MODE_I2CADDR_2;
     }
+    else if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR)){
+        prog_i2c_addr =  CTS_NORMAL_MODE_I2CADDR;
+    }    
     else if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR)){
         prog_i2c_addr =  CTS_PROGRAM_MODE_I2CADDR;
-    }else{
+    }
+    else{
         cts_err("!!! Prog mode i2c addr 0x58 and 0x30 is both offline, i2c transfer error !!!");
         cts_dev->confdata.prog_i2c_addr = CTS_PROGRAM_MODE_I2CADDR;
         return CTS_PROGRAM_MODE_I2CADDR;
@@ -1793,7 +1834,9 @@ request_firmware:
     cts_warn("Force update firmware");
     firmware = cts_request_firmware(cts_dev, hwid, fwid,  0);
 #else /* CFG_CTS_FIRMWARE_FORCE_UPDATE */
-    firmware = cts_request_firmware(cts_dev, hwid, fwid, device_fw_ver);
+// TODO:ERROR
+    return 0;
+    //firmware = cts_request_firmware(cts_dev, hwid, fwid, device_fw_ver);
 #endif /* CFG_CTS_FIRMWARE_FORCE_UPDATE */
 
     retries = 0;

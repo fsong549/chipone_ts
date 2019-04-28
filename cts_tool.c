@@ -373,11 +373,13 @@ static ssize_t cts_tool_write(struct file *file,
         }
 
         // TODO:  Use async mode such as thread, otherwise, host can not get update status.
+#ifdef CFG_CTS_FIRMWARE_IN_FS
         ret = cts_update_firmware_from_file(cts_dev, cts_tool_firmware_filepath, true);
         if (ret) {
             cts_err("Updata firmware failed %d", ret);
             //break;
         }
+#endif
 
         ret = cts_start_device(cts_dev);
         if (ret) {

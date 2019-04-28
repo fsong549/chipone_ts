@@ -161,7 +161,9 @@ int cts_plat_is_i2c_online(struct cts_platform_data *pdata, u8 i2c_addr)
 {
     u8 dummy_bytes[2] = {0x00, 0x00};
     int ret;
-
+	
+    cts_info("============i2c add:0x%02x==========",i2c_addr);
+	
     ret = cts_plat_i2c_write(pdata, i2c_addr, dummy_bytes, sizeof(dummy_bytes), 5, 2);
     if (ret) {
         cts_err("!!! I2C addr 0x%02x is offline !!!", i2c_addr);
@@ -172,18 +174,53 @@ int cts_plat_is_i2c_online(struct cts_platform_data *pdata, u8 i2c_addr)
     }
 }
 
+#ifdef IRQ_LED
+// mode: 1-set;0-clr
+// pin:gpio21
+int bcm2835_gpio_set_clr(bool mode,uint8_t pin)  
+{
+	volatile uint32_t __iomem *bcm2835_gpio = (volatile uint32_t *)ioremap(BCM2835_GPIO_BASE, 0x1000);  
+	volatile uint32_t *bcm2835_gpio_set = NULL;
+	volatile uint32_t *bcm2835_gpio_clr = NULL;
+	uint8_t   shift = pin % 32;  
+	uint32_t  value = 1 << shift;  
+
+	if(1==mode)
+		bcm2835_gpio_set = bcm2835_gpio + BCM2835_GPSET0/4 + pin/32;  
+	else
+		bcm2835_gpio_clr = bcm2835_gpio + BCM2835_GPCLR0/4 + pin/32;  
+
+	if(1==mode)
+	{
+		*bcm2835_gpio_set = *bcm2835_gpio_set | value;  
+		//cts_info("set address:  0x%x : %x\n", bcm2835_gpio_set, *bcm2835_gpio_set); 
+	}
+	else
+	{
+		*bcm2835_gpio_clr = *bcm2835_gpio_clr | value;  
+		//cts_info("clr address:  0x%x : %x\n", bcm2835_gpio_clr, *bcm2835_gpio_clr); 
+	}
+	
+	//cts_info("set address:  0x%x : %x\n", bcm2835_gpio_set, *bcm2835_gpio_set);  
+
+	iounmap(bcm2835_gpio);
+
+	return 0;  
+
+}
+#endif
 static void cts_plat_handle_irq(struct cts_platform_data *pdata)
 {
     int ret;
 
     cts_dbg("Handle IRQ");
 
-    cts_lock_device(pdata->cts_dev);
+    //cts_lock_device(pdata->cts_dev);
     ret = cts_irq_handler(pdata->cts_dev);
     if (ret) {
         cts_err("Device handle IRQ failed %d", ret);
     }
-    cts_unlock_device(pdata->cts_dev);
+    //cts_unlock_device(pdata->cts_dev);
 }
 
 static irqreturn_t cts_plat_irq_handler(int irq, void *dev_id)
@@ -194,6 +231,10 @@ static irqreturn_t cts_plat_irq_handler(int irq, void *dev_id)
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
     cts_dbg("IRQ handler");
+
+#ifdef IRQ_LED
+    bcm2835_gpio_set_clr(1,PIN);
+#endif
 
     pdata = (struct cts_platform_data *)dev_id;
     if (pdata == NULL) {
@@ -210,6 +251,10 @@ static irqreturn_t cts_plat_irq_handler(int irq, void *dev_id)
 
     queue_work(cts_data->workqueue, &pdata->ts_irq_work);
 #endif /* CONFIG_GENERIC_HARDIRQS */
+
+#ifdef IRQ_LED
+    bcm2835_gpio_set_clr(0,PIN);
+#endif
 
     return IRQ_HANDLED;
 }
@@ -237,7 +282,7 @@ int cts_init_platform_data(struct cts_platform_data *pdata,
     cts_info("Init");
 
     pdata->i2c_client = i2c_client;
-    pdata->ts_input_dev = tpd->dev;
+    //pdata->ts_input_dev = tpd->dev;
 
     rt_mutex_init(&pdata->dev_lock);
 
@@ -256,6 +301,9 @@ int cts_init_platform_data(struct cts_platform_data *pdata,
 	} else {
 		cts_info("Debounce time not found");
 	}
+	
+    cts_info("init irq");
+	
     pdata->irq = irq_of_parse_and_map(node, 0);
     if (pdata->irq == 0) {
         cts_err("Parse irq in dts failed");
@@ -265,7 +313,7 @@ int cts_init_platform_data(struct cts_platform_data *pdata,
     spin_lock_init(&pdata->irq_lock);
 
 #ifdef CONFIG_CTS_VIRTUALKEY
-    pdata->vkey_num = tpd_dts_data.tpd_keycnt;
+    //pdata->vkey_num = tpd_dts_data.tpd_keycnt;
 #endif /* CONFIG_CTS_VIRTUALKEY */
 
 #ifdef CONFIG_CTS_GESTURE
@@ -305,17 +353,30 @@ int cts_plat_request_resource(struct cts_platform_data *pdata)
 {
     cts_info("Request resource");
 
-    tpd_gpio_as_int(tpd_int_gpio_index);
-    tpd_gpio_output(tpd_rst_gpio_index, 1);
+    //tpd_gpio_as_int(tpd_int_gpio_index);
+    //tpd_gpio_output(tpd_rst_gpio_index, 1);
 
     return 0;
 }
 
-int cts_plat_request_irq(struct cts_platform_data *pdata)
+//int cts_plat_request_irq(struct cts_platform_data *pdata)
+int cts_plat_request_irq(struct  chipone_ts_data *data)
 {
-    int ret;
 
-    cts_info("Request IRQ");
+    int ret;
+	
+#ifdef IRQ_LED	
+    void __iomem *bcm2835_gpio;
+    volatile uint32_t *bcm2835_gpio_fsel = NULL;  
+    uint8_t   shift = 0;  
+    uint32_t  value = 0;   
+#endif
+
+    //struct chipone_ts_data *cts_data; 
+    struct device *dev = &data->i2c_client->dev;
+    cts_info("Request IRQ 2019");
+    cts_err("Request IRQ err log 20190425");
+#if 0
 
 #ifdef CONFIG_GENERIC_HARDIRQS
     /* Note:
@@ -329,19 +390,63 @@ int cts_plat_request_irq(struct cts_platform_data *pdata)
             cts_plat_irq_handler, IRQF_TRIGGER_RISING | IRQF_ONESHOT,
             pdata->i2c_client->dev.driver->name, pdata);
 #endif /* CONFIG_GENERIC_HARDIRQS */
+#endif
+
+
+//for raspberry 20190425 
+	ret = gpio_request_one(TOUCH_GPIO_INT,GPIOF_IN,"touch irq gpio");
+	if(ret)		
+	{		
+		cts_err("chipone gpio_request_one fail!!!"); 	
+		return ret; 
+	}
+
+	enable_irq(gpio_to_irq(TOUCH_GPIO_INT));	
+	
+	ret = devm_request_threaded_irq(dev,gpio_to_irq(TOUCH_GPIO_INT),NULL,cts_plat_irq_handler,IRQF_ONESHOT|IRQF_TRIGGER_FALLING,"touch irq",data->pdata);	
+	if(ret)
+	{		
+		cts_err("chipone request irq fail!!!");		
+		return ret;	
+	}
+
     if (ret) {
         cts_err("Request IRQ failed %d", ret);
         return ret;
     }
 
-    cts_plat_disable_irq(pdata);
+    cts_plat_disable_irq(data->pdata);
+
+#ifdef IRQ_LED
+	//add touch led blanking...
+	cts_info("bcm2835 gpio fsel pin=%d;mode=%d\n", PIN,BCM2835_GPIO_FSEL_OUTP);  
+
+	bcm2835_gpio = ioremap(BCM2835_GPIO_BASE, 0x100000);  
+	if(!bcm2835_gpio)
+	{
+		cts_err("ioremap fail!!!!!\n");  
+	}
+
+	bcm2835_gpio_fsel = bcm2835_gpio + BCM2835_GPFSEL0/4 + (PIN/10);  
+	shift = (PIN % 10) * 3;  
+	value = BCM2835_GPIO_FSEL_OUTP << shift;   
+	
+	*bcm2835_gpio_fsel = *bcm2835_gpio_fsel | value;  
+
+	//cts_info("fsel address: 0x%x : %x\n", bcm2835_gpio_fsel, *bcm2835_gpio_fsel);  
+	
+	iounmap(bcm2835_gpio);
+#endif
 
     return 0;
 }
 
 void cts_plat_free_irq(struct cts_platform_data *pdata)
 {
-    free_irq(pdata->irq, pdata);
+    //free_irq(pdata->irq, pdata);
+    gpio_free(TOUCH_GPIO_INT);
+    gpio_free(TOUCH_GPIO_RST);
+    //gpio_free(pdata->desc);
 }
 
 void cts_plat_free_resource(struct cts_platform_data *pdata)
@@ -366,6 +471,7 @@ void cts_plat_free_resource(struct cts_platform_data *pdata)
 
 int cts_plat_enable_irq(struct cts_platform_data *pdata)
 {
+#if 0
     unsigned long irqflags;
 
     cts_dbg("Enable IRQ");
@@ -383,10 +489,13 @@ int cts_plat_enable_irq(struct cts_platform_data *pdata)
     }
 
     return -ENODEV;
+#endif
+	return 0;
 }
 
 int cts_plat_disable_irq(struct cts_platform_data *pdata)
 {
+#if 0
     unsigned long irqflags;
 
     cts_dbg("Disable IRQ");
@@ -404,21 +513,95 @@ int cts_plat_disable_irq(struct cts_platform_data *pdata)
     }
 
     return -ENODEV;
+#endif
+	return 0;
 }
 
 
 int cts_plat_reset_device(struct cts_platform_data *pdata)
 {
     struct cts_device *cts_dev = pdata->cts_dev;
-    
+
+#ifdef CFG_CTS_HAS_RESET_PIN
+    //struct gpio_desc *d ;//= pdata->desc;
+    int i = 0,status = 0;
+#endif
+
     cts_info("Reset device");
 
 #ifdef CFG_CTS_HAS_RESET_PIN
-    tpd_gpio_output(tpd_rst_gpio_index, 0);
+    //tpd_gpio_output(tpd_rst_gpio_index, 0);
     mdelay(1);
-    tpd_gpio_output(tpd_rst_gpio_index, 1);
+    //tpd_gpio_output(tpd_rst_gpio_index, 1);
     mdelay(50);
 #endif /* CFG_CTS_HAS_RESET_PIN */
+
+#ifdef CFG_CTS_HAS_RESET_PIN
+#if 1
+	//for raspberry 20190425 
+	cts_info("gpio request RESET!!!");
+	status= gpio_request_one(TOUCH_GPIO_RST,GPIOF_DIR_OUT |GPIOF_INIT_HIGH,"touch rst gpio");
+	if(status) 	
+	{		
+		cts_err("chipone gpio_request_one reset fail!!!");	
+		return status; 
+	}
+	/*************************************************
+	status = gpio_direction_output(TOUCH_GPIO_RST,1);
+	if(status < 0)
+	{		
+		cts_err("gpiod_direction_output fail!!!");
+		//gpio_gree(desc);
+		//return -EINVAL; 
+	}
+	*************************************************/
+
+	for(i = 0;i < 10;i++)
+	{
+		cts_info("reset loop = %d",i);
+		gpio_set_value(TOUCH_GPIO_RST,0);
+		mdelay(5);
+		gpio_set_value(TOUCH_GPIO_RST,1);
+		mdelay(5);
+	}
+	mdelay(50);
+#else
+	//d = gpio_to_valid_desc(gpio);
+	d = gpio_is_valid(TOUCH_GPIO_RST) ? gpio_to_desc(TOUCH_GPIO_RST) : NULL;
+	if(!d)
+	{		
+		cts_err("gpio_to_valid_desc fail!!!");	
+		return -EINVAL; 
+	}	
+	status = gpio_request(TOUCH_GPIO_RST,"touch rst");
+	if(status < 0)
+	{		
+		cts_err("gpiod_request fail!!!");
+		//gpio_free(d);
+		//return -EINVAL; 
+	}
+	cts_info("TOUCH_GPIO_RST direction = 1 !!!");
+	status = gpiod_direction_output_raw(d,1);
+	if(status < 0)
+	{		
+		cts_err("gpiod_direction_output_raw fail!!!");
+		//gpio_gree(desc);
+		//return -EINVAL; 
+	}
+	cts_info("TOUCH_GPIO_RST loop!!!");
+	for(i = 0;i < 10;i++)
+	{
+		cts_info("reset loop = %d",i);
+		gpiod_set_value_cansleep(d,0);
+		mdelay(5);
+		gpiod_set_value_cansleep(d,1);
+		mdelay(5);
+	}
+	mdelay(50);
+
+#endif
+
+#endif
 
     cts_get_program_i2c_addr(cts_dev);
     return 0;
@@ -441,10 +624,18 @@ int cts_plat_power_down_device(struct cts_platform_data *pdata)
 
 int cts_plat_init_touch_device(struct cts_platform_data *pdata)
 {
+    struct device *dev = &pdata->i2c_client->dev;
     cts_info("Init touch device");
 
+    pdata->ts_input_dev = devm_input_allocate_device(dev);	
+    if (!pdata->ts_input_dev) 
+    {		
+        cts_err("Failed to allocate input device\n");		
+        return -ENOMEM;	
+    }
+
     return input_mt_init_slots(pdata->ts_input_dev,
-        tpd_dts_data.touch_max_num, INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
+        5, INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 }
 
 void cts_plat_deinit_touch_device(struct cts_platform_data *pdata)
@@ -496,11 +687,12 @@ int cts_plat_process_touch_msg(struct cts_platform_data *pdata,
         input_mt_slot(input_dev, msgs[i].id);
         switch (msgs[i].event) {
             case CTS_DEVICE_TOUCH_EVENT_DOWN:
-                TPD_DEBUG_SET_TIME;
-                TPD_EM_PRINT(x, y, x, y, msgs[i].id, 1);
+                //TPD_DEBUG_SET_TIME;
+                //TPD_EM_PRINT(x, y, x, y, msgs[i].id, 1);
                 tpd_history_x = x;
                 tpd_history_y = y;
-#ifdef CONFIG_MTK_BOOT
+//#ifdef CONFIG_MTK_BOOT
+#if 0//CONFIG_MTK_BOOT
                 if (tpd_dts_data.use_tpd_button) {
                     if (FACTORY_BOOT == get_boot_mode() ||
                         RECOVERY_BOOT == get_boot_mode())
@@ -518,8 +710,8 @@ int cts_plat_process_touch_msg(struct cts_platform_data *pdata,
                 break;
 
             case CTS_DEVICE_TOUCH_EVENT_UP:
-                TPD_DEBUG_SET_TIME;
-                TPD_EM_PRINT(tpd_history_x, tpd_history_y, tpd_history_x, tpd_history_y, msgs[i].id, 0);
+                //TPD_DEBUG_SET_TIME;
+                //TPD_EM_PRINT(tpd_history_x, tpd_history_y, tpd_history_x, tpd_history_y, msgs[i].id, 0);
                 tpd_history_x = 0;
                 tpd_history_y = 0;
 #ifdef CONFIG_MTK_BOOT
@@ -607,7 +799,7 @@ int cts_plat_init_vkey_device(struct cts_platform_data *pdata)
     pdata->vkey_state = 0;
 
     cts_info("Init Vkey");
-
+#if 0
     if (tpd_dts_data.use_tpd_button) {
         cts_info("Init vkey");
 
@@ -615,7 +807,7 @@ int cts_plat_init_vkey_device(struct cts_platform_data *pdata)
         tpd_button_setting(tpd_dts_data.tpd_key_num, tpd_dts_data.tpd_key_local,
                            tpd_dts_data.tpd_key_dim_local);
     }
-
+#endif
     return 0;
 }
 
@@ -629,7 +821,8 @@ void cts_plat_deinit_vkey_device(struct cts_platform_data *pdata)
 int cts_plat_process_vkey(struct cts_platform_data *pdata, u8 vkey_state)
 {
     u8  event;
-    int x, y, i;
+    //int x, y, i;
+    int i;
 
     event = pdata->vkey_state ^ vkey_state;
 
@@ -637,7 +830,7 @@ int cts_plat_process_vkey(struct cts_platform_data *pdata, u8 vkey_state)
 
     for (i = 0; i < pdata->vkey_num; i++) {
         if (event & BIT(i)) {
-            tpd_button(x, y, vkey_state & BIT(i));
+            //tpd_button(x, y, vkey_state & BIT(i));
 
             /* MTK fobidon more than one key pressed in the same time */
             break;
@@ -657,7 +850,7 @@ int cts_plat_release_all_vkey(struct cts_platform_data *pdata)
 
     for (i = 0; i < pdata->vkey_num; i++) {
         if (pdata->vkey_state & BIT(i)) {
-            tpd_button(x, y, 0);
+            //tpd_button(x, y, 0);
         }
     }
 

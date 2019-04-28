@@ -30,14 +30,15 @@
 #endif  /* CONFIG_TOUCHSCREEN_PHYSICAL_ROTATION_WITH_LCM */
 #endif  /* CONFIG_MTK_LCM_PHYSICAL_ROTATION_HW */
 
-#define CFG_CTS_DEVICE_NAME         TPD_DEVICE
+#define CFG_CTS_DEVICE_NAME         "TPD_DEVICE"
 #define CFG_CTS_DRIVER_NAME         "chipone-ts"
 
-#ifdef CONFIG_OF
+//#ifdef CONFIG_OF
+#if 1
 #define CONFIG_CTS_OF
 #endif
 #ifdef CONFIG_CTS_OF
-#define CFG_CTS_OF_DEVICE_ID_NAME   "mediatek,cap_touch"
+#define CFG_CTS_OF_DEVICE_ID_NAME   "chipone,icn8318"
 #endif /* CONFIG_CTS_OF */
 
 #if CFG_CTS_MAX_I2C_XFER_SIZE < 8

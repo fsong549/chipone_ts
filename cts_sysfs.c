@@ -15,22 +15,58 @@ static char *argv[MAX_ARG_NUM];
 
 static int parse_arg(const char *buf, size_t count)
 {
+#if 0//debug log info 
     char *p;
-
+	int i = 0,ret = 0;
+	u16 addr = 0;
+	cts_info("parse_arg buf=%s",buf);
+	
     memcpy(cmdline_param, buf, min((size_t)MAX_ARG_LENGTH, count));
     cmdline_param[count] = '\0';
+	
+	cts_info("cmdline_param buf=%s",cmdline_param);
 
     argc = 0;
     p = strim(cmdline_param);
     if (p == NULL || p[0] == '\0') {
         return 0;
     }
+	
+	for(i = 0;i < 15;i++)
+	{
+		cts_info("p[%d]=%c",i,p[i]);
+	}
 
     while (p && p[0] != '\0' && argc < MAX_ARG_NUM) {
         argv[argc++] = strsep(&p, " ,");
+		
+	    ret = kstrtou16(argv[argc-1], 0, &addr);
+	    if (ret) {
+	        return cts_err("Invalid address");
+	    }
+		cts_info("addr = %d",addr);
     }
 
     return argc;
+#else
+	char *p;
+
+	memcpy(cmdline_param, buf, min((size_t)MAX_ARG_LENGTH, count));
+	cmdline_param[count] = '\0';
+
+	argc = 0;
+	p = strim(cmdline_param);
+	if (p == NULL || p[0] == '\0') {
+		return 0;
+	}
+
+	while (p && p[0] != '\0' && argc < MAX_ARG_NUM) {
+		argv[argc++] = strsep(&p, " ,");
+	}
+
+	return argc;
+
+#endif
 }
 
 /* echo addr value1 value2 value3 ... valueN > write_reg */
@@ -1028,6 +1064,7 @@ int cts_sysfs_add_device(struct device *dev)
     // Low version kernel NOT support sysfs_create_groups()
     for (i = 0; cts_dev_attr_groups[i]; i++) {
         ret = sysfs_create_group(&dev->kobj, cts_dev_attr_groups[i]);
+	cts_info("sysfs_create_group ,ret = %d",ret);
         if (ret) {
             while (--i >= 0) {
                 sysfs_remove_group(&dev->kobj, cts_dev_attr_groups[i]);

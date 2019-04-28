@@ -4,9 +4,9 @@
 /** Driver version */
 #define CFG_CTS_DRIVER_MAJOR_VERSION        1
 #define CFG_CTS_DRIVER_MINOR_VERSION        0
-#define CFG_CTS_DRIVER_PATCH_VERSION        0
+#define CFG_CTS_DRIVER_PATCH_VERSION        1
 
-#define CFG_CTS_DRIVER_VERSION              "v1.0.0"
+#define CFG_CTS_DRIVER_VERSION              "v1.0.1_rpi"
 
 /** Whether reset pin is used */
 #define CFG_CTS_HAS_RESET_PIN
@@ -15,9 +15,9 @@
 //#define CFG_CTS_FIRMWARE_FORCE_UPDATE
 
 /** Use build in firmware or firmware file in fs*/
-#define CFG_CTS_DRIVER_BUILTIN_FIRMWARE
-#define CFG_CTS_KERNEL_BUILTIN_FIRMWARE
-#define CFG_CTS_FIRMWARE_IN_FS
+//#define CFG_CTS_DRIVER_BUILTIN_FIRMWARE
+//#define CFG_CTS_KERNEL_BUILTIN_FIRMWARE
+//#define CFG_CTS_FIRMWARE_IN_FS
 
 
 //#define  SUPPORT_SENSOR_ID
@@ -29,7 +29,7 @@
 
 #ifdef CONFIG_SYSFS
     /* Sys FS for gesture report, debug feature etc. */
-    #define CONFIG_CTS_SYSFS
+#define CONFIG_CTS_SYSFS
 #endif /* CONFIG_SYSFS */
 
 #define CFG_CTS_MAX_TOUCH_NUM               (5)
@@ -93,9 +93,22 @@
  * Platform configurations
  ****************************************************************************/
 
-#ifdef CONFIG_MTK_PLATFORM
+//#ifdef CONFIG_MTK_PLATFORM
 #include "cts_plat_mtk_config.h"
-#endif /* CONFIG_MTK_PLATFORM */
+//#endif /* CONFIG_MTK_PLATFORM */
+
+#define	TOUCH_GPIO_INT	20//18
+#define	TOUCH_GPIO_RST	21
+
+//#define IRQ_LED
+#ifdef IRQ_LED
+#define PIN 21 
+#define BCM2835_GPIO_BASE 0x3f200000
+#define BCM2835_GPCLR0 (0x28) 
+#define BCM2835_GPSET0 (0x1c) 
+#define BCM2835_GPFSEL0 (0) 
+#define BCM2835_GPIO_FSEL_OUTP 1 //pin as an output
+#endif
 
 #endif /* CTS_CONFIG_H */
 

@@ -3,7 +3,7 @@
 #include "cts_config.h"
 #include "cts_platform.h"
 #include "cts_core.h"
-#include "icn8xxx_flash.h"
+#include "icnt8xxx_flash.h"
 
 #include "cts_firmware.h"
 #include <linux/path.h>
@@ -241,12 +241,13 @@ ssize_t cts_file_write(struct file *file, const char *buf, size_t count,
                              loff_t pos)
 {
     mm_segment_t old_fs;
-    ssize_t res;
+    //ssize_t res;
+    int res = 0;
 
     old_fs = get_fs();
     set_fs(get_ds());
     /* The cast to a user pointer is valid due to the set_fs() */
-    res = vfs_write(file, (__force const char __user *)buf, count, &pos     );
+    //res = vfs_write(file, (__force const char __user *)buf, count, &pos     );
     set_fs(old_fs);
 
     return res;
@@ -256,23 +257,26 @@ int cts_file_read(struct file *file, loff_t offset,
                  char *addr, unsigned long count)
 {
     mm_segment_t old_fs;
-    loff_t pos = offset;
-    int result;
+    //loff_t pos = offset;
+    int result = 0;
 
     old_fs = get_fs();
     set_fs(get_ds());
     /* The cast to a user pointer is valid due to the set_fs() */
-    result = vfs_read(file, (void __user *)addr, count, &pos);
+    //result = vfs_read(file, (void __user *)addr, count, &pos);
     set_fs(old_fs);
     return result;
 }
 
+#ifdef CFG_CTS_FIRMWARE_IN_FS
 static bool is_firmware_size_valid(const struct cts_firmware *firmware)
 {
     return (firmware->size > 0x102 &&
             firmware->size <= CTS_FIRMWARE_FILE_SIZE);
 }
+#endif
 
+#ifdef CFG_CTS_DRIVER_BUILTIN_FIRMWARE
 static bool is_firmware_valid(const struct cts_firmware *firmware)
 {
     if (firmware && firmware->data && is_firmware_size_valid(firmware)) {
@@ -280,6 +284,7 @@ static bool is_firmware_valid(const struct cts_firmware *firmware)
     }
     return false;
 }
+#endif
 
 #ifdef SUPPORT_SENSOR_ID
 
@@ -714,8 +719,11 @@ err_release_firmware:
 struct cts_firmware *cts_request_firmware(
     struct cts_device *cts_dev,u16 hwid, u16 fwid, u16 curr_firmware_ver)
 {
+#ifdef CFG_CTS_FIRMWARE_IN_FS
     int i;
     const u8 *p=NULL;
+#endif
+
     struct cts_firmware *firmware_builtin = NULL;
     struct cts_firmware *firmware_from_file = NULL;
 #if (defined(CFG_CTS_FIRMWARE_IN_FS) && defined(SUPPORT_SENSOR_ID))
