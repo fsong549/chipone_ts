@@ -8,7 +8,7 @@
 struct chipone_ts_data *chipone_ts_data = NULL;
 
 //bool cts_show_debug_log = false;
-bool cts_show_debug_log = true;
+bool cts_show_debug_log = false;
 
 //module_param_named(debug_log, cts_show_debug_log, bool, 0660);
 //MODULE_PARM_DESC(debug_log, "Show debug log control");

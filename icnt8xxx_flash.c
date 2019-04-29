@@ -37,7 +37,7 @@ static unsigned short const Crc16Table[]= {
 
 static int icn85xx_update_status(int status)
 {
-//  cts_info("icn85xx_update_status: %d\n", status);
+	cts_info("icn85xx_update_status: %d\n", status);
     g_status = status;
     return 0;
 }

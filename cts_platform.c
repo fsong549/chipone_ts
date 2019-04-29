@@ -524,7 +524,7 @@ int cts_plat_reset_device(struct cts_platform_data *pdata)
 
 #ifdef CFG_CTS_HAS_RESET_PIN
     //struct gpio_desc *d ;//= pdata->desc;
-    int i = 0,status = 0;
+    int status = 0;
 #endif
 
     cts_info("Reset device");
@@ -556,14 +556,16 @@ int cts_plat_reset_device(struct cts_platform_data *pdata)
 	}
 	*************************************************/
 
-	for(i = 0;i < 10;i++)
-	{
-		cts_info("reset loop = %d",i);
+	//for(i = 0;i < 10;i++)
+	//{
+		//cts_info("reset loop = %d",i);
+		gpio_set_value(TOUCH_GPIO_RST,1);
+		mdelay(5);
 		gpio_set_value(TOUCH_GPIO_RST,0);
 		mdelay(5);
 		gpio_set_value(TOUCH_GPIO_RST,1);
 		mdelay(5);
-	}
+	//}
 	mdelay(50);
 #else
 	//d = gpio_to_valid_desc(gpio);
@@ -680,7 +682,7 @@ int cts_plat_process_touch_msg(struct cts_platform_data *pdata,
         y = wrap(TPD_RES_Y,y);
 #endif /* CFG_CTS_WRAP_Y */
 
-        cts_dbg("  Process touch msg[%d]: id[%u] ev=%u x=%u y=%u p=%u",
+        cts_info("  Process touch msg[%d]: id[%u] ev=%u x=%u y=%u p=%u",
             i, msgs[i].id, msgs[i].event, x, y, msgs[i].pressure);
 
 #ifdef CONFIG_CTS_SLOTPROTOCOL

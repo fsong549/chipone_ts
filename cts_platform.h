@@ -65,7 +65,7 @@
 //#include "tpd_debug.h"
 //#include "upmu_common.h"
 
-//extern bool cts_show_debug_log;
+extern bool cts_show_debug_log;
 extern struct chipone_ts_data *chipone_ts_data;
 
 #ifndef LOG_TAG
@@ -80,7 +80,7 @@ extern struct chipone_ts_data *chipone_ts_data;
     printk("<I>CTS-" LOG_TAG " " fmt"\n", ##__VA_ARGS__)
 #define cts_dbg(fmt, ...)   \
     do {                                                    \
-            printk("<D>CTS-" LOG_TAG " "fmt"\n", ##__VA_ARGS__);   \
+            if(cts_show_debug_log) printk("<D>CTS-" LOG_TAG " "fmt"\n", ##__VA_ARGS__);   \
     } while(0)
 
 struct cts_device;

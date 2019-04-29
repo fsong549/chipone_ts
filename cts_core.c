@@ -679,7 +679,6 @@ static int cts_init_device_hwdata(struct cts_device *cts_dev,
 {
     int i,ret;
     int flash_id = 0;
-
     cts_dbg("Init hardware data hwid: %04x fwid: %04x", hwid, fwid);
 
     for (i = 0; i < ARRAY_SIZE(cts_device_hwdatas); i++) {
@@ -722,14 +721,14 @@ init_ic_type:
     }else{
         cts_dev->rtdata.is_chip_empty = true;
     }
-    
     if((strcmp(cts_dev->hwdata->name, "ICNT81xx") == 0)
         ||(strcmp(cts_dev->hwdata->name, "ICNT87xx") == 0)){
         flash_id = icn87xx_read_flashid(cts_dev);
     }else if(strcmp(cts_dev->hwdata->name, "ICNT82xx") == 0){
 //
     }else if((strcmp(cts_dev->hwdata->name, "ICNT85xx") == 0)
-        ||(strcmp(cts_dev->hwdata->name, "ICNT86xx") == 0)){
+        ||(strcmp(cts_dev->hwdata->name, "ICNT86xx") == 0)
+        ||(strcmp(cts_dev->hwdata->name, "ICNT88xx") == 0)){
         flash_id = icn85xx_read_flashid(cts_dev);
 //
     }else if(strcmp(cts_dev->hwdata->name, "ICNT89xx") == 0){
@@ -1320,21 +1319,22 @@ static inline void cts_init_rtdata_with_normal_mode(struct cts_device *cts_dev)
 u8 cts_get_program_i2c_addr(struct cts_device *cts_dev)
 {
     u8 prog_i2c_addr;
+	/*
     cts_info("==============I2C TEST START==============");
     cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR);
     cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR);
     cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR_2);
     cts_plat_is_i2c_online(cts_dev->pdata, 0x78);
     cts_info("==============I2C TEST END==============");
-	
+	*/
     if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR_2)){
         prog_i2c_addr =  CTS_PROGRAM_MODE_I2CADDR_2;
     }
-    else if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR)){
-        prog_i2c_addr =  CTS_NORMAL_MODE_I2CADDR;
-    }    
     else if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_PROGRAM_MODE_I2CADDR)){
         prog_i2c_addr =  CTS_PROGRAM_MODE_I2CADDR;
+    }    
+    else if(cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR)){
+        prog_i2c_addr =  CTS_NORMAL_MODE_I2CADDR;
     }
     else{
         cts_err("!!! Prog mode i2c addr 0x58 and 0x30 is both offline, i2c transfer error !!!");
@@ -1425,7 +1425,9 @@ int cts_enter_normal_mode(struct cts_device *cts_dev)
     else if(strcmp(cts_dev->hwdata->name, "ICNT82xx") == 0){
         //
     }else if((strcmp(cts_dev->hwdata->name, "ICNT85xx") == 0)
-        ||(strcmp(cts_dev->hwdata->name, "ICNT86xx") == 0)){
+        ||(strcmp(cts_dev->hwdata->name, "ICNT86xx") == 0)
+        ||(strcmp(cts_dev->hwdata->name, "ICNT88xx") == 0)){
+        cts_info("boot from sram");
         ret = cts_hw_reg_writeb_retry(cts_dev, 0x40400, 0x03, 5, 5);//boot from sram
         
     }else if(strcmp(cts_dev->hwdata->name, "ICNT89xx") == 0){
@@ -1437,7 +1439,7 @@ int cts_enter_normal_mode(struct cts_device *cts_dev)
         cts_err("Enter normal mode fail");
         //goto err_init_i2c_program_mode;
     } else {
-        mdelay(30);
+        mdelay(50);
     }
 
     if (cts_plat_is_i2c_online(cts_dev->pdata, CTS_NORMAL_MODE_I2CADDR)) {
@@ -1835,14 +1837,13 @@ request_firmware:
     firmware = cts_request_firmware(cts_dev, hwid, fwid,  0);
 #else /* CFG_CTS_FIRMWARE_FORCE_UPDATE */
 // TODO:ERROR
-    return 0;
-    //firmware = cts_request_firmware(cts_dev, hwid, fwid, device_fw_ver);
+    firmware = cts_request_firmware(cts_dev, hwid, fwid, device_fw_ver);
 #endif /* CFG_CTS_FIRMWARE_FORCE_UPDATE */
 
     retries = 0;
 update_firmware:
     if (firmware) {
-        cts_info("firmware->name:%s,",firmware->name);
+        cts_info("firmware->name:%s",firmware->name);
 
         ++retries;
         ret = cts_update_firmware(cts_dev, firmware, true);

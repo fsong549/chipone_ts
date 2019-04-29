@@ -12,7 +12,7 @@
 
 #ifdef CFG_CTS_DRIVER_BUILTIN_FIRMWARE
 #include "icnt89xx_fw.h"
-//#include "icnt88xx_fw.h"
+#include "icnt88xx_fw.h"
 #include "icnt87xx_fw.h"
 #include "icnt86xx_fw.h"
 #include "icnt85xx_fw.h"
@@ -28,20 +28,29 @@ struct cts_firmware cts_driver_builtin_firmwares[] = {
         .size = ARRAY_SIZE(icnt89xx_driver_builtin_firmware),
         .ver_offset = 0x114
     },
-    {
-        .name = "ICNT86xx",      /* MUST set non-NULL */
-        .hwid = CTS_HWID_ICNT86XX,
-        .fwid = CTS_FWID_ICNT86XX,
-        .data = icnt86xx_driver_builtin_firmware,
-        .size = ARRAY_SIZE(icnt86xx_driver_builtin_firmware),
-        .ver_offset = 0x100
-    },
+	{
+		.name = "ICNT88xx", 	 /* MUST set non-NULL */
+		.hwid = CTS_HWID_ICNT88XX,
+		.fwid = CTS_FWID_ICNT88XX,
+		.data = icnt88xx_driver_builtin_firmware,
+		.size = ARRAY_SIZE(icnt88xx_driver_builtin_firmware),
+		.ver_offset = 0x100
+	},
+
     {
         .name = "ICNT87xx",      /* MUST set non-NULL */
         .hwid = CTS_HWID_ICNT87XX,
         .fwid = CTS_FWID_ICNT87XX,
         .data = icnt87xx_driver_builtin_firmware,
         .size = ARRAY_SIZE(icnt87xx_driver_builtin_firmware),
+        .ver_offset = 0x100
+    },
+    {
+        .name = "ICNT86xx",      /* MUST set non-NULL */
+        .hwid = CTS_HWID_ICNT86XX,
+        .fwid = CTS_FWID_ICNT86XX,
+        .data = icnt86xx_driver_builtin_firmware,
+        .size = ARRAY_SIZE(icnt86xx_driver_builtin_firmware),
         .ver_offset = 0x100
     },
     {
@@ -256,16 +265,32 @@ ssize_t cts_file_write(struct file *file, const char *buf, size_t count,
 int cts_file_read(struct file *file, loff_t offset,
                  char *addr, unsigned long count)
 {
+#if 0//vfs_read
     mm_segment_t old_fs;
-    //loff_t pos = offset;
+    loff_t pos = offset;
     int result = 0;
 
     old_fs = get_fs();
     set_fs(get_ds());
     /* The cast to a user pointer is valid due to the set_fs() */
-    //result = vfs_read(file, (void __user *)addr, count, &pos);
+    result = vfs_read(file, (void __user *)addr, count, &pos);
     set_fs(old_fs);
     return result;
+#else
+    //mm_segment_t old_fs;
+    loff_t pos = offset;
+    int result = 0;
+
+    //old_fs = get_fs();
+    //set_fs(get_ds());
+    /* The cast to a user pointer is valid due to the set_fs() */
+    result = kernel_read(file, addr, count, &pos);//vfs_read(file, (void __user *)addr, count, &pos);
+    //set_fs(old_fs);
+    return result;
+
+
+	//return 0;//kernel_read(file, offset, addr, count);
+#endif
 }
 
 #ifdef CFG_CTS_FIRMWARE_IN_FS
@@ -619,7 +644,8 @@ struct cts_firmware *cts_request_newer_firmware_from_fs(
         cts_info("File '%s' size: %zu invalid", filepath, firmware->size);
         goto err_close_file;
     }
-
+	
+	//if (kernel_read(file, 0x100, buff, 2) < 0) {
     if (cts_file_read(file, firmware->ver_offset, buff, 2) < 0) {
         cts_err("Read version from offset 0x100 failed");
         goto err_close_file;
@@ -650,7 +676,8 @@ struct cts_firmware *cts_request_newer_firmware_from_fs(
         cts_err("Request form fs alloc firmware data failed");
         goto err_close_file;
     }
-
+	
+    //read_size = kernel_read(file, 0, firmware->data, firmware->size);
     read_size = cts_file_read(file, 0, firmware->data, firmware->size);
     if (read_size < 0 || read_size != firmware->size) {
         cts_err("Request from fs read whole file failed %d", read_size);
@@ -843,7 +870,8 @@ retry_upgrade:
 
 
     }else if((strcmp(firmware->name, "ICNT85xx") == 0)
-    ||(strcmp(firmware->name, "ICNT86xx") == 0)){
+    ||(strcmp(firmware->name, "ICNT86xx") == 0)
+    ||(strcmp(firmware->name, "ICNT88xx") == 0)){
         ret = icnt85xx_fw_update(cts_dev, firmware, to_flash);
         if (ret) {
             cts_err("Update firmware failed %d ",ret);
